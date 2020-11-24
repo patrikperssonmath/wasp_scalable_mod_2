@@ -21,7 +21,7 @@
 		//"--privileged=true",
 		"--gpus=all",
 		"-v=/data:/data:rw",
-		"-v=/database/shape_info:/database:rw",
+		"-v=/database/:/database:rw",
 		"--rm"		
 	]
 }

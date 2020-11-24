@@ -70,6 +70,7 @@ RUN apt-get update -y \
 
 RUN pip install colour
 RUN pip install -U matplotlib
+RUN pip install -U scikit-learn
 
 #RUN apt-get update -y \
 #    && pip3 install opencv-python-headless
