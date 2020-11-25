@@ -23,7 +23,6 @@ import pickle
 
 import shutil
 
-from BahdanauAttention import BahdanauAttention
 from CNN_Encoder import CNN_Encoder
 from RNN_Decoder import RNN_Decoder
 
@@ -88,7 +87,7 @@ def create_training_data(top_k):
     # Select the first 6000 image_paths from the shuffled set.
     # Approximately each image id has 5 captions associated with it, so that will
     # lead to 30,000 examples.
-    train_image_paths = image_paths[:6000]
+    train_image_paths = image_paths #[:6000]
     print(len(train_image_paths))
 
     train_captions = []
@@ -103,6 +102,8 @@ def create_training_data(top_k):
                                                     weights='imagenet')
     new_input = image_model.input
     hidden_layer = image_model.layers[-1].output
+    hidden_layer = tf.keras.layers.MaxPool2D(
+        pool_size=(8, 8), padding='valid')(hidden_layer)
 
     image_features_extract_model = tf.keras.Model(new_input, hidden_layer)
 
@@ -116,8 +117,8 @@ def create_training_data(top_k):
 
     for img, path in tqdm(image_dataset):
         batch_features = image_features_extract_model(img)
-        batch_features = tf.reshape(batch_features,
-                                    (batch_features.shape[0], -1, batch_features.shape[3]))
+        # batch_features = tf.reshape(batch_features,
+        #                            (batch_features.shape[0], batch_features.shape[1]*batch_features.shape[2]*batch_features.shape[3]))
 
         for bf, p in zip(batch_features, path):
             path_of_feature = p.numpy().decode("utf-8")
@@ -203,6 +204,8 @@ if not os.path.exists(datafolder):
                                                     weights='imagenet')
     new_input = image_model.input
     hidden_layer = image_model.layers[-1].output
+    hidden_layer = tf.keras.layers.MaxPool2D(
+        pool_size=(8, 8), padding='valid')(hidden_layer)
 
     image_features_extract_model = tf.keras.Model(new_input, hidden_layer)
 
@@ -220,6 +223,8 @@ else:
                                                     weights='imagenet')
     new_input = image_model.input
     hidden_layer = image_model.layers[-1].output
+    hidden_layer = tf.keras.layers.MaxPool2D(
+        pool_size=(8, 8), padding='valid')(hidden_layer)
 
     image_features_extract_model = tf.keras.Model(new_input, hidden_layer)
 
@@ -229,7 +234,7 @@ else:
 
 BATCH_SIZE = 64
 BUFFER_SIZE = 1000
-embedding_dim = 256
+embedding_dim = 512
 units = 512
 vocab_size = top_k + 1
 num_steps = len(img_name_train) // BATCH_SIZE
@@ -303,20 +308,28 @@ def train_step(img_tensor, target):
     # because the captions are not related from image to image
     hidden = decoder.reset_state(batch_size=target.shape[0])
 
-    dec_input = tf.expand_dims(
-        [tokenizer.word_index['<start>']] * target.shape[0], 1)
-
     with tf.GradientTape() as tape:
-        features = encoder(img_tensor)
+
+        x = encoder(img_tensor)
+
+        _, hidden = decoder(x, hidden)
+
+        dec_input = tf.expand_dims(
+            [tokenizer.word_index['<start>']] * target.shape[0], 1)
+
+        x = decoder.embed(dec_input)
 
         for i in range(1, target.shape[1]):
             # passing the features through the decoder
-            predictions, hidden, _ = decoder(dec_input, features, hidden)
+
+            predictions, hidden = decoder(x, hidden)
 
             loss += loss_function(target[:, i], predictions)
 
             # using teacher forcing
             dec_input = tf.expand_dims(target[:, i], 1)
+
+            x = decoder.embed(dec_input)
 
     total_loss = (loss / int(target.shape[1]))
 
@@ -360,7 +373,6 @@ plt.show()
 
 
 def evaluate(image):
-    attention_plot = np.zeros((max_length, attention_features_shape))
 
     hidden = decoder.reset_state(batch_size=1)
 
@@ -369,43 +381,42 @@ def evaluate(image):
     img_tensor_val = tf.reshape(
         img_tensor_val, (img_tensor_val.shape[0], -1, img_tensor_val.shape[3]))
 
-    features = encoder(img_tensor_val)
-
-    dec_input = tf.expand_dims([tokenizer.word_index['<start>']], 0)
     result = []
 
-    for i in range(max_length):
-        predictions, hidden, attention_weights = decoder(
-            dec_input, features, hidden)
+    x = encoder(img_tensor_val)
 
-        attention_plot[i] = tf.reshape(attention_weights, (-1, )).numpy()
+    _, hidden = decoder(x, hidden)
+
+    dec_input = tf.expand_dims([tokenizer.word_index['<start>']], 0)
+
+    x = decoder.embed(dec_input)
+
+    for i in range(max_length):
+
+        predictions, hidden = decoder(x, hidden)
 
         predicted_id = tf.random.categorical(predictions, 1)[0][0].numpy()
         result.append(tokenizer.index_word[predicted_id])
 
         if tokenizer.index_word[predicted_id] == '<end>':
-            return result, attention_plot
+            return result
 
         dec_input = tf.expand_dims([predicted_id], 0)
 
-    attention_plot = attention_plot[:len(result), :]
-    return result, attention_plot
+        x = decoder.embed(dec_input)
+
+    return result
 
 
-def plot_attention(image, result, attention_plot):
+def plot_attention(image, result):
     temp_image = np.array(Image.open(image))
 
     fig = plt.figure(figsize=(10, 10))
 
-    len_result = len(result)
-    for l in range(len_result):
-        temp_att = np.resize(attention_plot[l], (8, 8))
-        ax = fig.add_subplot(len_result//2, len_result//2, l+1)
-        ax.set_title(result[l])
-        img = ax.imshow(temp_image)
-        ax.imshow(temp_att, cmap='gray', alpha=0.6, extent=img.get_extent())
+    plt.imshow(temp_image)
 
     plt.tight_layout()
+
     plt.show()
 
 
@@ -414,8 +425,8 @@ rid = np.random.randint(0, len(img_name_val))
 image = img_name_val[rid]
 real_caption = ' '.join([tokenizer.index_word[i]
                          for i in cap_val[rid] if i not in [0]])
-result, attention_plot = evaluate(image)
+result = evaluate(image)
 
 print('Real Caption:', real_caption)
 print('Prediction Caption:', ' '.join(result))
-plot_attention(image, result, attention_plot)
+plot_attention(image, result)

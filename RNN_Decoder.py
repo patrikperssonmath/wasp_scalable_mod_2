@@ -1,5 +1,4 @@
 import tensorflow as tf
-from BahdanauAttention import BahdanauAttention
 
 
 class RNN_Decoder(tf.keras.Model):
@@ -9,9 +8,9 @@ class RNN_Decoder(tf.keras.Model):
 
         self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
         self.lstm = tf.keras.layers.LSTM(
-            self.units, return_state=True, return_sequences=True, name="encoder")
+            self.units, activation="elu", return_state=True, return_sequences=True, name="encoder")
 
-        self.fc1 = tf.keras.layers.Dense(self.units)
+        self.fc1 = tf.keras.layers.Dense(self.units, activation="elu")
         self.fc2 = tf.keras.layers.Dense(vocab_size)
 
     def embed(self, x):
@@ -21,7 +20,6 @@ class RNN_Decoder(tf.keras.Model):
 
     def call(self, x, hidden):
 
-        # passing the concatenated vector to the GRU
         output, state_h, state_c = self.lstm(x, initial_state=hidden)
 
         state = [state_h, state_c]
