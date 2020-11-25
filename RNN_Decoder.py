@@ -1,44 +1,41 @@
 import tensorflow as tf
 from BahdanauAttention import BahdanauAttention
 
+
 class RNN_Decoder(tf.keras.Model):
-  def __init__(self, embedding_dim, units, vocab_size):
-    super(RNN_Decoder, self).__init__()
-    self.units = units
+    def __init__(self, embedding_dim, units, vocab_size):
+        super(RNN_Decoder, self).__init__()
+        self.units = units
 
-    self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    self.gru = tf.keras.layers.GRU(self.units,
-                                   return_sequences=True,
-                                   return_state=True,
-                                   recurrent_initializer='glorot_uniform')
-    self.fc1 = tf.keras.layers.Dense(self.units)
-    self.fc2 = tf.keras.layers.Dense(vocab_size)
+        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+        self.lstm = tf.keras.layers.LSTM(
+            self.units, return_state=True, return_sequences=True, name="encoder")
 
-    self.attention = BahdanauAttention(self.units)
+        self.fc1 = tf.keras.layers.Dense(self.units)
+        self.fc2 = tf.keras.layers.Dense(vocab_size)
 
-  def call(self, x, features, hidden):
-    # defining attention as a separate model
-    context_vector, attention_weights = self.attention(features, hidden)
+    def embed(self, x):
+        x = self.embedding(x)
 
-    # x shape after passing through embedding == (batch_size, 1, embedding_dim)
-    x = self.embedding(x)
+        return x
 
-    # x shape after concatenation == (batch_size, 1, embedding_dim + hidden_size)
-    x = tf.concat([tf.expand_dims(context_vector, 1), x], axis=-1)
+    def call(self, x, hidden):
 
-    # passing the concatenated vector to the GRU
-    output, state = self.gru(x)
+        # passing the concatenated vector to the GRU
+        output, state_h, state_c = self.lstm(x, initial_state=hidden)
 
-    # shape == (batch_size, max_length, hidden_size)
-    x = self.fc1(output)
+        state = [state_h, state_c]
 
-    # x shape == (batch_size * max_length, hidden_size)
-    x = tf.reshape(x, (-1, x.shape[2]))
+        # shape == (batch_size, max_length, hidden_size)
+        x = self.fc1(output)
 
-    # output shape == (batch_size * max_length, vocab)
-    x = self.fc2(x)
+        # x shape == (batch_size * max_length, hidden_size)
+        x = tf.reshape(x, (-1, x.shape[2]))
 
-    return x, state, attention_weights
+        # output shape == (batch_size * max_length, vocab)
+        x = self.fc2(x)
 
-  def reset_state(self, batch_size):
-    return tf.zeros((batch_size, self.units))
+        return x, state
+
+    def reset_state(self, batch_size):
+        return [tf.zeros((batch_size, self.units)), tf.zeros((batch_size, self.units))]

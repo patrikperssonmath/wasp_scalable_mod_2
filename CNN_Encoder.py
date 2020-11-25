@@ -8,8 +8,15 @@ class CNN_Encoder(tf.keras.Model):
         super(CNN_Encoder, self).__init__()
         # shape after fc == (batch_size, 64, embedding_dim)
         self.fc = tf.keras.layers.Dense(embedding_dim)
+        self.flatten = tf.keras.layers.Flatten()
 
     def call(self, x):
+
+        x = self.flatten(x)
+
         x = self.fc(x)
-        x = tf.nn.relu(x)
+        x = tf.nn.elu(x)
+
+        x = tf.expand_dims(x, 1)
+
         return x
