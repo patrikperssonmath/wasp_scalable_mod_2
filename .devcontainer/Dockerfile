@@ -25,6 +25,13 @@ ENV PATH=${PATH}:${PIP_TARGET}/bin
 # requirements rarely (if ever) change.
 # COPY requirements.txt /tmp/pip-tmp/
 
+
+# nvidia-container-runtime
+ENV NVIDIA_VISIBLE_DEVICES \
+    ${NVIDIA_VISIBLE_DEVICES:-all}
+ENV NVIDIA_DRIVER_CAPABILITIES \
+    ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
+
 # Configure apt and install packages
 RUN apt-get update -y \
     &&  apt-get install -y  sudo \
@@ -71,6 +78,8 @@ RUN apt-get update -y \
 RUN pip install colour
 RUN pip install -U matplotlib
 RUN pip install -U scikit-learn
+RUN pip install -q tqdm
+RUN apt-get install python3-tk -y
 
 #RUN apt-get update -y \
 #    && pip3 install opencv-python-headless

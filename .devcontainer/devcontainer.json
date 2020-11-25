@@ -19,9 +19,18 @@
 	],
 	"runArgs": [
 		//"--privileged=true",
+		"--privileged=true",
+		"--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw",
+		"--volume=/tmp/.docker.xauth:/tmp/.docker.xauth:rw",
+		"--env=DISPLAY",
+		"--env='XAUTHORITY=/tmp/.docker.xauth'",
 		"--gpus=all",
 		"-v=/data:/data:rw",
 		"-v=/database/:/database:rw",
-		"--rm"		
-	]
+		"--rm",
+		"--net=host"		
+	],
+
+	"initializeCommand": ["./.devcontainer/setup.sh"]
+
 }
