@@ -342,7 +342,7 @@ def train_step(img_tensor, target):
     return loss, total_loss
 
 
-EPOCHS = 0
+EPOCHS = 40
 
 for epoch in range(start_epoch, EPOCHS):
     start = time.time()
@@ -369,7 +369,7 @@ plt.plot(loss_plot)
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.title('Loss Plot')
-plt.show()
+# plt.show()
 
 
 def evaluate(image):
@@ -398,6 +398,10 @@ def evaluate(image):
         predictions, hidden = decoder(x, hidden)
 
         predicted_id = tf.random.categorical(predictions, 1)[0][0].numpy()
+        #predictions = tf.nn.softmax(predictions)
+
+        #predicted_id = np.argmax(predictions.numpy())
+
         result.append(tokenizer.index_word[predicted_id])
 
         if tokenizer.index_word[predicted_id] == '<end>':
@@ -419,7 +423,7 @@ def plot_attention(image, result):
 
     plt.tight_layout()
 
-    plt.show()
+    # plt.show()
 
 
 # captions on the validation set
@@ -432,3 +436,28 @@ result = evaluate(image)
 print('Real Caption:', real_caption)
 print('Prediction Caption:', ' '.join(result))
 plot_attention(image, result)
+
+for i in range(5):
+
+    rid = np.random.randint(0, len(img_name_val))
+    image = img_name_val[rid]
+    real_caption = ' '.join([tokenizer.index_word[i]
+                             for i in cap_val[rid] if i not in [0]])
+
+    img = np.array(Image.open(image))
+
+    result = evaluate(image)
+
+    img = Image.fromarray(img)
+
+    name = image.split("/")[-1]
+
+    img.save("./exampels/"+name)
+
+    f = open("./exampels/"+name+"_pred.txt", "w")
+    f.write(' '.join(result))
+    f.close()
+
+    f = open("./exampels/"+name+"_gt.txt", "w")
+    f.write(real_caption)
+    f.close()
