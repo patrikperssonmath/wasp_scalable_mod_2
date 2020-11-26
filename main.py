@@ -87,7 +87,7 @@ def create_training_data(top_k):
     # Select the first 6000 image_paths from the shuffled set.
     # Approximately each image id has 5 captions associated with it, so that will
     # lead to 30,000 examples.
-    train_image_paths = image_paths #[:6000]
+    train_image_paths = image_paths[:6000]
     print(len(train_image_paths))
 
     train_captions = []
@@ -342,7 +342,7 @@ def train_step(img_tensor, target):
     return loss, total_loss
 
 
-EPOCHS = 20
+EPOCHS = 0
 
 for epoch in range(start_epoch, EPOCHS):
     start = time.time()
@@ -388,6 +388,8 @@ def evaluate(image):
     _, hidden = decoder(x, hidden)
 
     dec_input = tf.expand_dims([tokenizer.word_index['<start>']], 0)
+
+    result.append('<start>')
 
     x = decoder.embed(dec_input)
 
